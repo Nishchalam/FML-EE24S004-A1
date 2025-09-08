@@ -22,14 +22,22 @@ function average = compute_average(data)
         average(i) = col_sum / m;
     end
 end
-%User defined for computing covariance of 
-%% Main program
+%User defined for computing covariance of data
+function covariance_mat = compute_covariance(data)
+    [m,n]=size(data);
+    avg=compute_average(data);
+    centered_data=data-avg;
+    covariance_mat=(centered_data'*centered_data)/m;
+end
+%% (a) PCA
 dataTable = readtable("dataset1-assignment1 - Sheet1.csv");
 data = table2array(dataTable);
 
 % Center the data
 avg = compute_average(data);
 centered_data = data - avg;
+
+%plotting the data for better visulisation
 figure;
 hold on;
 scatter(data(:,1), data(:,2), 20, "red", "filled",'MarkerFaceAlpha',0.6);
@@ -43,3 +51,51 @@ legend("Original Data", "Centered Data",'mean of data','mean of centered data');
 grid on;
 hold off;
 
+%computing covariance for the centered data
+cov_mat=compute_covariance(centered_data);
+
+%eigen decomposition of covariance matrix
+[eig_vec, eig_val_mat]=eig(cov_mat);
+[eig_vals_sorted, indices]=sort(diag(eig_val_mat), 'descend');
+eig_vec_sorted=eig_vec(:, indices);
+
+%ratio of explained variance 
+evr=eig_vals_sorted/sum(eig_vals_sorted);
+disp('Ratio by each principal component:');
+disp(evr);
+
+%Projecting the data over the top 2 principal component
+projected_data=centered_data*eig_vec_sorted(:,1:2);
+figure;
+scatter(projected_data(:,1), projected_data(:,2), 20, "filled");
+title("Projection of data onto first 2 Principal Components");
+xlabel("PC1");
+ylabel("PC2");
+grid on;
+
+%% (b) Kernel PCA
+%defining kernels
+kernels = {'linear', 'polynomial', 'rbf'};
+poly_degree = 3; % Degree for polynomial kernel
+rbf_sigmas = [0.1, 1, 5]; % Various sigma values for RBF kernel
+
+%Computing the K matrix
+K=data'*data;
+
+%Eigen decomposition and sorting them in descending order of eigen values
+[e_vec,e_val_mat]=eig(K);
+[e_val_sorted,indices]=sort(diag(e_val_mat),'descend');
+e_vec_sorted=e_vec(:,indices);
+
+%computing alpha_k
+alpha_k=zeros(size(e_vec_sorted));
+for k=1:size(e_val_sorted,2)
+    if e_val_sorted>0
+        alpha_k(:,k)=e_vec_sorted(:,k)/sqrt(size(centered_data,1)*e_val_sorted(k));
+    else
+        alpha_k(:,k)=0;
+    end
+end
+
+%now the representations for the data will be the product between centered data and alpha_k
+w=centered_data*alpha_k;
