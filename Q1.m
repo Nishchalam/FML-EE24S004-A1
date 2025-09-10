@@ -144,57 +144,92 @@ hold off;
 
 
 %% (b) Write a piece of code to implement the Kernel PCA algorithm on this dataset.Explore various kernels discussed in class.For each Kernel, plot the projection of each point in the dataset onto the top-2 principal components. Use one plot for each kernel - In case of RBF kernel, use a different plot for each value of σ that you use.
-kernels={'linear', 'polynomial', 'rbf'};
-poly_degree=3; % Degree for polynomial kernel
-rbf_sigmas=[0.1, 1, 5]; % Different sigma values for RBF kernel
+%Linear kernel
+K = centered_data * centered_data';  % linear kernel
 
-% loop over kernels
-for kidx=1:length(kernels)
-    kernel_type=kernels{kidx};
-    if strcmp(kernel_type,'linear')
-        K=centered_data*centered_data'; % linear kernel
-        figure_title='Kernel PCA with Linear Kernel';
-        sigmas=1; % dummy
-    elseif strcmp(kernel_type,'polynomial')
-        K=(centered_data*centered_data' + 1).^poly_degree; % polynomial kernel
-        figure_title=sprintf('Kernel PCA with Polynomial Kernel (deg=%d)', poly_degree);
-        sigmas=1; % dummy
-    elseif strcmp(kernel_type,'rbf')
-        sigmas=rbf_sigmas; % loop over RBF sigmas
-    end
-    
-    % if RBF, loop over sigma values
-    for s=1:length(sigmas)
-        if strcmp(kernel_type,'rbf')
-            sigma=sigmas(s);
-            sq_dists=pdist2(centered_data,centered_data,'euclidean').^2;
-            K=exp(-sq_dists/(2*sigma^2));
-            figure_title=sprintf('Kernel PCA with RBF Kernel (σ=%.2f)', sigma);
-        end
+% Eigen decomposition
+[e_vec,e_val_mat] = eig(K);
+[e_val_sorted,indices] = sort(diag(e_val_mat),'descend');
+e_vec_sorted = e_vec(:,indices);
 
-        % Eigen decomposition of K
-        [e_vec,e_val_mat]=eig(K);
-        [e_val_sorted,indices]=sort(diag(e_val_mat),'descend');
-        e_vec_sorted=e_vec(:,indices);
-
-        % Normalize eigenvectors (alphas)
-        alpha_k=zeros(size(e_vec_sorted));
-        for k=1:length(e_val_sorted)
-            if e_val_sorted(k) > 1e-8
-                alpha_k(:,k)=e_vec_sorted(:,k)/sqrt(e_val_sorted(k));
-            end
-        end
-
-        % Representations of the data in feature space
-        projected_kpca=K*alpha_k(:,1:2);
-
-        % Plotting
-        figure;
-        scatter(projected_kpca(:,1),projected_kpca(:,2),20,'filled');
-        title(figure_title);
-        xlabel('PC1'); ylabel('PC2');
-        grid on;
+% Normalize eigenvectors
+alpha_k=zeros(size(e_vec_sorted));
+for k=1:length(e_val_sorted)
+    if e_val_sorted(k) > 1e-8
+        alpha_k(:,k) = e_vec_sorted(:,k) / sqrt(e_val_sorted(k));
     end
 end
+
+% Project onto top-2 components
+projected_kpca = K * alpha_k(:,1:2);
+
+% Plot
+figure;
+scatter(projected_kpca(:,1),projected_kpca(:,2),20,'filled');
+title('Kernel PCA with Linear Kernel');
+xlabel('PC1'); ylabel('PC2');
+grid on;
+
+%Polynomial kernels
+figure;
+for d = 2:10
+    % Polynomial kernel matrix
+    K = (centered_data*centered_data' + 1).^d;
+    
+    % Eigen decomposition
+    [e_vec,e_val_mat] = eig(K);
+    [e_val_sorted,indices] = sort(diag(e_val_mat),'descend');
+    e_vec_sorted = e_vec(:,indices);
+
+    % Normalize eigenvectors
+    alpha_k=zeros(size(e_vec_sorted));
+    for k=1:length(e_val_sorted)
+        if e_val_sorted(k) > 1e-8
+            alpha_k(:,k) = e_vec_sorted(:,k) / sqrt(e_val_sorted(k));
+        end
+    end
+    
+    % Project onto top-2 components
+    projected_kpca = K * alpha_k(:,1:2);
+    
+    % Subplot index (d-1 goes from 1 to 9)
+    subplot(3,3,d-1);
+    scatter(projected_kpca(:,1),projected_kpca(:,2),10,'filled');
+    title(sprintf('Poly deg=%d', d));
+    xlabel('PC1'); ylabel('PC2'); grid on;
+end
+sgtitle('Kernel PCA with Polynomial Kernels (degrees 2–10)');
+
+%RBF kernels subplot
+rbf_sigmas = 0.5:0.5:5; % 10 values
+figure;
+for i = 1:length(rbf_sigmas)
+    sigma = rbf_sigmas(i);
+    sq_dists = pdist2(centered_data,centered_data,'euclidean').^2;
+    K = exp(-sq_dists/(2*sigma^2));
+    
+    % Eigen decomposition
+    [e_vec,e_val_mat] = eig(K);
+    [e_val_sorted,indices] = sort(diag(e_val_mat),'descend');
+    e_vec_sorted = e_vec(:,indices);
+
+    % Normalize eigenvectors
+    alpha_k=zeros(size(e_vec_sorted));
+    for k=1:length(e_val_sorted)
+        if e_val_sorted(k) > 1e-8
+            alpha_k(:,k) = e_vec_sorted(:,k) / sqrt(e_val_sorted(k));
+        end
+    end
+    
+    % Project onto top-2 components
+    projected_kpca = K * alpha_k(:,1:2);
+    
+    % Subplot index
+    subplot(2,5,i);
+    scatter(projected_kpca(:,1),projected_kpca(:,2),10,'filled');
+    title(sprintf('\\sigma=%.1f', sigma));
+    xlabel('PC1'); ylabel('PC2'); grid on;
+end
+sgtitle('Kernel PCA with RBF Kernels (σ = 0.5 to 5)');
 
 %% (c) Which Kernel do you think is best suited for this dataset and why?
